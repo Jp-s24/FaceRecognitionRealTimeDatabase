@@ -4,6 +4,13 @@ import cvzone
 import cv2
 import face_recognition
 import numpy as np
+from supabase import create_client, Client
+
+url = "https://rahngoowmsqgkozdomhx.supabase.co"
+key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJhaG5nb293bXNxZ2tvemRvbWh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQzOTU0MTgsImV4cCI6MjA1OTk3MTQxOH0.3gD4NKLSz2HMckdhO045IVHDOUR4edqV9TNeTwHdRgA"
+bucket_name = "schoolattendance"
+
+supabase: Client = create_client(url, key)
 
 # Initialize webcam
 cap = cv2.VideoCapture(0)  # Use 0 for the default camera
@@ -26,6 +33,10 @@ with open("EncodeFile.p", 'rb') as file:
 encodeListKnown, studentIds = encodeListKnownWithIds
 print("Encode File Loaded.")
 
+modeType = 0
+counter = 0
+id = -1
+
 # Main loop
 while True:
     success, img = cap.read()
@@ -43,7 +54,7 @@ while True:
 
     # Overlay webcam and mode image on the background
     imgBackground[162:162 + 480, 55:55 + 640] = img
-    imgBackground[44:44 + 633, 808:808 + 414] = imgModeList[3]
+    imgBackground[44:44 + 633, 808:808 + 414] = imgModeList[modeType]
 
     # Process each detected face
     for encodeFace, faceLoc in zip(encodeCurFrame, faceCurFrame):
@@ -67,6 +78,24 @@ while True:
 
             # Draw rectangle using cvzone
             cvzone.cornerRect(imgBackground, bbox, rt=0)
+            id = studentIds[matchIndex]
+            if counter == 0:
+                counter = 1
+                modeType = 1
+
+
+        if counter!= 0:
+
+            if counter == 1:
+                studentInfoResponse = supabase.table("attendance").select("*").eq("id", str(id)).single().execute()
+                studentInfo = studentInfoResponse.data
+                print(studentInfo)
+
+            if studentInfo:
+                cv2.putText(imgBackground, str(studentInfo['total_attendance']), (861, 125),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+
+            counter += 1
 
     # Show the final frame
     cv2.imshow("Face Attendance", imgBackground)
